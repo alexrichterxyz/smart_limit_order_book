@@ -193,8 +193,12 @@ double elob::order_limit::trade(elob::c_order_ptr &t_order) {
 			quantity_remaining -= queued_order_quantity;
 			t_order->m_quantity = quantity_remaining;
 			queued_order->m_quantity = 0.0;
-			queued_order->on_traded(t_order); // todo
-			t_order->on_traded(queued_order); // todo
+			queued_order->m_locked = true;
+			t_order->m_locked = true;
+			queued_order->on_traded(t_order);
+			t_order->on_traded(queued_order);
+			queued_order->m_locked = false;
+			t_order->m_locked = false;
 			queued_order->m_book = nullptr;
 		} else if (!queued_order->m_all_or_nothing) {
 			/// consume non-AON order partially
@@ -203,8 +207,12 @@ double elob::order_limit::trade(elob::c_order_ptr &t_order) {
 			m_quantity -= quantity_remaining;
 			quantity_remaining = 0.0;
 			t_order->m_quantity = quantity_remaining;
-			queued_order->on_traded(t_order); // todo
-			t_order->on_traded(queued_order); // todo
+			queued_order->m_locked = true;
+			t_order->m_locked = true;
+			queued_order->on_traded(t_order);
+			t_order->on_traded(queued_order);
+			queued_order->m_locked = false;
+			t_order->m_locked = false;
 			break; // avoid quantity_remaining > 0.0 check in while
 			       // loop
 		} else {

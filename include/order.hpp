@@ -49,14 +49,14 @@ class order : public std::enable_shared_from_this<order> {
 	 * price of the book.
 	 *
 	 */
-	virtual void on_accepted(){};
+	virtual void on_accepted() {};
 
 	/**
 	 * @brief Called once the order has been queued at the specified
 	 * price level.
 	 *
 	 */
-	virtual void on_queued(){};
+	virtual void on_queued() {};
 
 	/**
 	 * @brief Called if the order was rejected by the book. This may
@@ -64,14 +64,14 @@ class order : public std::enable_shared_from_this<order> {
 	 * etc.
 	 *
 	 */
-	virtual void on_rejected(){};
+	virtual void on_rejected() {};
 
 	/**
 	 * @brief Called after the order executed against another one.
 	 *
 	 * @param t_order the other order
 	 */
-	virtual void on_traded(c_order_ptr &t_order){};
+	virtual void on_traded(c_order_ptr &t_order) {};
 
 	/**
 	 * @brief Called once the order got canceled. This may happen if
@@ -79,7 +79,7 @@ class order : public std::enable_shared_from_this<order> {
 	 * or cancel and could not get filled immediately.
 	 *
 	 */
-	virtual void on_canceled(){};
+	virtual void on_canceled() {};
 
 	public:
 	/**
@@ -107,7 +107,7 @@ class order : public std::enable_shared_from_this<order> {
 	 * @return false could not cancel the order because it hasn't
 	 * been queued yet.
 	 */
-	inline bool cancel();
+	inline bool cancel(); // todo: check if locked
 
 	/**
 	 * @brief Get the instance of the book into which the order was
@@ -174,7 +174,8 @@ class order : public std::enable_shared_from_this<order> {
 	 * @param t_all_or_nothing the update value of the order's all
 	 * or nothing flag
 	 * @return true successfully set to all-or-nothing
-	 * @return false could not set to all-or-nothing because the order is locked
+	 * @return false could not set to all-or-nothing because the order is
+	 * locked
 	 */
 	inline bool set_all_or_nothing(const bool t_all_or_nothing);
 
@@ -207,7 +208,7 @@ elob::order::order(const elob::side t_side, const double t_price,
       m_all_or_nothing(t_all_or_nothing) {}
 
 bool elob::order::cancel() {
-	if (m_queued) {
+	if (m_queued && !m_locked) {
 		m_limit_it->second.erase(m_order_it);
 
 		if (m_limit_it->second.is_empty()) {
@@ -231,7 +232,7 @@ bool elob::order::set_all_or_nothing(const bool t_all_or_nothing) {
 		return true;
 	}
 
-	if(m_locked) {
+	if (m_locked) {
 		return false;
 	}
 
@@ -282,7 +283,7 @@ bool elob::order::set_quantity(const double t_quantity) {
 		return false;
 	}
 
-	if(m_locked) {
+	if (m_locked) {
 		return false;
 	}
 
@@ -403,6 +404,5 @@ bool elob::order::is_all_or_nothing() const { return m_all_or_nothing; }
 bool elob::order::is_queued() const { return m_queued; }
 
 bool elob::order::is_locked() const { return m_locked; }
-
 
 #endif // #ifndef ORDER_HPP
