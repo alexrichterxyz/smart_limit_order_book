@@ -42,10 +42,11 @@ bool test::run() {
 			++passed_count;
 		}
 
-		std::cout << std::setfill('.') << std::setw(60) << std::left
-			  << (prefix + "::" + id) << std::setw(20) << std::right
-			  << (passed_test ? "PASSED" : "FAILED") << '\n'
-			  << std::setfill(' ');
+		(passed_test ? std::cout : std::cerr)
+		    << std::setfill('.') << std::setw(60) << std::left
+		    << (prefix + "::" + id) << std::setw(20) << std::right
+		    << (passed_test ? "PASSED" : "FAILED") << '\n'
+		    << std::setfill(' ');
 	}
 
 	std::cout << "Passed: " << passed_count << '/' << m_tests.size()
