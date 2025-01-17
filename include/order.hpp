@@ -28,6 +28,7 @@ class order : public std::enable_shared_from_this<order> {
 	const bool m_immediate_or_cancel = false;
 	bool m_all_or_nothing = false;
 	bool m_queued = false;
+	bool m_locked = false;
 
 	/* pointer to the book into which the order was inserted.
 		it's guaranteed to be dereferencable in the virtual
@@ -146,8 +147,10 @@ class order : public std::enable_shared_from_this<order> {
 	 * lot of all or nothing orders in the book.
 	 *
 	 * @param t_quantity
+	 * @return true successfully set the quantity
+	 * @return false could not set the quantity because the order is locked
 	 */
-	inline void set_quantity(const double t_quantity);
+	inline bool set_quantity(const double t_quantity);
 
 	/**
 	 * @brief Check if the order is immediate or cancel.
@@ -170,8 +173,10 @@ class order : public std::enable_shared_from_this<order> {
 	 *
 	 * @param t_all_or_nothing the update value of the order's all
 	 * or nothing flag
+	 * @return true successfully set to all-or-nothing
+	 * @return false could not set to all-or-nothing because the order is locked
 	 */
-	inline void set_all_or_nothing(const bool t_all_or_nothing);
+	inline bool set_all_or_nothing(const bool t_all_or_nothing);
 
 	/**
 	 * @brief Check whether the order is queued. Queued orders can
@@ -181,6 +186,8 @@ class order : public std::enable_shared_from_this<order> {
 	 * @return false, the order is not queued.
 	 */
 	inline bool is_queued() const;
+
+	inline bool is_locked() const;
 
 	friend book;
 	friend order_limit;
@@ -219,14 +226,18 @@ bool elob::order::cancel() {
 	return false;
 }
 
-void elob::order::set_all_or_nothing(const bool t_all_or_nothing) {
+bool elob::order::set_all_or_nothing(const bool t_all_or_nothing) {
 	if (t_all_or_nothing == m_all_or_nothing) {
-		return;
+		return true;
+	}
+
+	if(m_locked) {
+		return false;
 	}
 
 	if (!m_queued) {
 		m_all_or_nothing = t_all_or_nothing;
-		return;
+		return true;
 	}
 
 	auto &limit_obj = m_limit_it->second;
@@ -235,7 +246,7 @@ void elob::order::set_all_or_nothing(const bool t_all_or_nothing) {
 	if (t_all_or_nothing) { // is queued and change from false to
 				// true
 		// to ensure price-TIME priority, one needs to find the
-		// orevious occurence in m_aon_order_its
+		// previous occurence in m_aon_order_its
 		limit_obj.m_aon_quantity += m_quantity;
 		limit_obj.m_quantity -= m_quantity;
 
@@ -249,7 +260,7 @@ void elob::order::set_all_or_nothing(const bool t_all_or_nothing) {
 				    std::next((*order_it)->m_aon_order_its_it);
 				aon_order_its.insert(insert_at_it, m_order_it);
 				m_aon_order_its_it = insert_at_it;
-				return;
+				return true;
 			}
 		}
 
@@ -262,16 +273,22 @@ void elob::order::set_all_or_nothing(const bool t_all_or_nothing) {
 		limit_obj.m_quantity += m_quantity;
 		aon_order_its.erase(m_aon_order_its_it);
 	}
+
+	return true;
 }
 
-void elob::order::set_quantity(const double t_quantity) {
+bool elob::order::set_quantity(const double t_quantity) {
 	if (t_quantity <= 0) {
-		return;
+		return false;
+	}
+
+	if(m_locked) {
+		return false;
 	}
 
 	if (!m_queued) {
 		m_quantity = t_quantity;
-		return;
+		return true;
 	}
 
 	// order is queued
@@ -365,6 +382,8 @@ void elob::order::set_quantity(const double t_quantity) {
 			m_book->end_order_deferral();
 		}
 	}
+
+	return true;
 }
 
 elob::book *elob::order::get_book() const { return m_book; }
@@ -382,5 +401,8 @@ bool elob::order::is_immediate_or_cancel() const {
 bool elob::order::is_all_or_nothing() const { return m_all_or_nothing; }
 
 bool elob::order::is_queued() const { return m_queued; }
+
+bool elob::order::is_locked() const { return m_locked; }
+
 
 #endif // #ifndef ORDER_HPP
