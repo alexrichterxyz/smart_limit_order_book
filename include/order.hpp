@@ -43,7 +43,7 @@ class order : public std::enable_shared_from_this<order> {
 
 	protected:
 	/**
-	 * @brief book. At this stage the order has been verified to be
+	 * @brief At this stage the order has been verified to be
 	 * valid and is awaiting execution. This event method can be
 	 * used to adapt the price of the order to the current market
 	 * price of the book.
@@ -52,14 +52,14 @@ class order : public std::enable_shared_from_this<order> {
 	virtual void on_accepted(){};
 
 	/**
-	 * @brief called once the order has been queued at the specified
+	 * @brief Called once the order has been queued at the specified
 	 * price level.
 	 *
 	 */
 	virtual void on_queued(){};
 
 	/**
-	 * @brief called if the order was rejected by the book. This may
+	 * @brief Called if the order was rejected by the book. This may
 	 * happen if the order is already queued, has a negative price,
 	 * etc.
 	 *
@@ -67,14 +67,14 @@ class order : public std::enable_shared_from_this<order> {
 	virtual void on_rejected(){};
 
 	/**
-	 * @brief called after the order executed against another one.
+	 * @brief Called after the order executed against another one.
 	 *
 	 * @param t_order the other order
 	 */
 	virtual void on_traded(c_order_ptr &t_order){};
 
 	/**
-	 * @brief called once the order got canceled. This may happen if
+	 * @brief Called once the order got canceled. This may happen if
 	 * the order got canceled manually or if the order is immediate
 	 * or cancel and could not get filled immediately.
 	 *

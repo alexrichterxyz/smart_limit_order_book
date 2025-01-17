@@ -40,7 +40,7 @@ class trigger : public std::enable_shared_from_this<trigger> {
 
 	protected:
 	/**
-	 * @brief book. At this stage the trigger has been verified to
+	 * @brief At this stage the trigger has been verified to
 	 * be valid and is about to be inserted. This event method can
 	 * be used to adapt the price of the trigger to the current
 	 * market price of the book.
@@ -49,12 +49,12 @@ class trigger : public std::enable_shared_from_this<trigger> {
 	virtual void on_accepted(){};
 
 	/**
-	 * @brief called once the trigglimit
+	 * @brief Called once the trigger has been inserted into the book
 	 */
 	virtual void on_queued(){};
 
 	/**
-	 * @brief called if the trigger was rejected by the book. This
+	 * @brief Called if the trigger was rejected by the book. This
 	 * may happen if the trigger is already queued, has a negative
 	 * price, etc.
 	 *
@@ -62,7 +62,7 @@ class trigger : public std::enable_shared_from_this<trigger> {
 	virtual void on_rejected(){};
 
 	/**
-	 * @brief triggers on the ask side get triggered if the market
+	 * @brief Triggers on the ask side get triggered if the market
 	 * price (price of the last trade) rises above or reaches the
 	 * specified price. Triggers inserted on the bid side are
 	 * responsive to falling prices.
@@ -71,7 +71,7 @@ class trigger : public std::enable_shared_from_this<trigger> {
 	virtual void on_triggered(){};
 
 	/**
-	 * @brief called once the trigger got canceled.
+	 * @brief Called once the trigger got canceled.
 	 *
 	 */
 	virtual void on_canceled(){};
@@ -115,13 +115,13 @@ class trigger : public std::enable_shared_from_this<trigger> {
 	 * the virtual event methods.
 	 *
 	 * @return book* pointer to the book object into which the
-	 * TRIGGER was inserted or nullptr if it hasn't been inserted
+	 * trigger was inserted or nullptr if it hasn't been inserted
 	 * into a book yet or got removed from it.
 	 */
 	inline book *get_book() const;
 
 	/**
-	 * @brief Cancels the TRIGGER, if possible. Currently, only
+	 * @brief Cancels the trigger, if possible. Currently, only
 	 * queued triggers can be canceled.
 	 *
 	 * @return true successfully cancelled.
