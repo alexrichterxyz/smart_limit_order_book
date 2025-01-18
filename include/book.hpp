@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <queue>
+#include <vector>
 
 namespace elob {
 
@@ -30,7 +31,7 @@ std::ostream &operator<<(std::ostream &t_os, const book &t_book);
  */
 class book {
 	private:
-	/* During order execution. event handlers like "on_trade" are
+	/* During order execution. event handlers like "on_before_trade" are
 	 * called which may insert additional orders recursively. These
 	 * additional orders will be deferred. Only once
 	 * the outer insertion call has completed, the additional orders
@@ -43,6 +44,12 @@ class book {
 
 	std::map<double, trigger_limit, std::greater<double>> m_bid_triggers;
 	std::map<double, trigger_limit, std::less<double>> m_ask_triggers;
+
+	// when an order trades against orders in the book, all orders involved
+	// in this trade are added to this vector. After the trade is fully
+	// executed, the on_after_trade event is dispatched on all orders in
+	// this list before all elements are removed
+	std::vector<c_order_ptr> m_traded_orders;
 
 	// set to -1 to prevent triggers from being triggered
 	// immediately.
@@ -65,6 +72,15 @@ class book {
 	 *
 	 */
 	inline void end_order_deferral();
+
+	/**
+	 * \internal
+	 * @brief Once an order has been executed against other ones, this
+	 * function is called dispatch the on_after_trade event handler on all
+	 * orders involved in a trade
+	 *
+	 */
+	inline void process_traded_orders();
 
 	inline void insert_bid(c_order_ptr &t_order);
 	inline void insert_ask(c_order_ptr &t_order);
@@ -135,7 +151,7 @@ class book {
 	 * be executed. Partially filled orders will be queued (or
 	 * canelled if marked as immediate-or-cancel). When the function
 	 * is called from within another order's event handler (like
-	 * on_trade), the order will be deferred and only executed once
+	 * on_before_trade), the order will be deferred and only executed once
 	 * the other order has been handled.
 	 *
 	 * @param t_order the order to be inserted
@@ -263,6 +279,7 @@ class book {
 	friend std::ostream &operator<<(std::ostream &t_os, const book &t_book);
 	friend order;
 	friend trigger;
+	friend order_limit;
 };
 
 } // namespace elob
@@ -383,6 +400,21 @@ void elob::book::end_order_deferral() {
 		m_deferred.pop();
 		insert(order_obj);
 	}
+}
+
+void elob::book::process_traded_orders() {
+	for (const auto &order : m_traded_orders) {
+		order->on_after_trade();
+
+		// remove reference to book once the order has been removed to
+		// avoid dangling pointers; this wasn't done previously to
+		// ensure the book is dereferencable in on_after_trade
+		if (!order->is_queued()) {
+			order->m_book = nullptr;
+		}
+	}
+
+	m_traded_orders.clear();
 }
 
 void elob::book::insert(elob::c_trigger_ptr t_trigger) {
@@ -617,6 +649,16 @@ void elob::book::execute_bid(elob::c_order_ptr &t_order) {
 		}
 	}
 
+	if(m_traded_orders.empty()) {
+		// no trade was executed
+		return;
+	}
+
+	// the order executed at least one other one
+
+	m_traded_orders.push_back(t_order);
+	process_traded_orders();
+
 	auto trigger_limit_it = m_ask_triggers.begin();
 
 	while (trigger_limit_it != m_ask_triggers.end() &&
@@ -644,6 +686,16 @@ void elob::book::execute_ask(elob::c_order_ptr &t_order) {
 			++limit_it;
 		}
 	}
+
+	if(m_traded_orders.empty()) {
+		// no trade was executed
+		return;
+	}
+
+	// the order executed against at least one other one
+
+	m_traded_orders.push_back(t_order);
+	process_traded_orders();
 
 	auto trigger_limit_it = m_bid_triggers.begin();
 

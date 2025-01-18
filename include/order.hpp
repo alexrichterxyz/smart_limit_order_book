@@ -17,7 +17,7 @@ class book;
  * orders with a price of zero (sell) or infinity (buy). Objects of this
  * class can be inserted into book objects. The behavior of orders can
  * be customized by overriding the virtual event methods: on_queued,
- * on_accepted, on_rejected, on_traded, and on_canceled.
+ * on_accepted, on_rejected, on_before_trade, on_after_trade, and on_canceled.
  *
  */
 class order : public std::enable_shared_from_this<order> {
@@ -67,11 +67,18 @@ class order : public std::enable_shared_from_this<order> {
 	virtual void on_rejected() {};
 
 	/**
-	 * @brief Called after the order executed against another one.
+	 * @brief Called before the order is executed against another one.
 	 *
 	 * @param t_order the other order
 	 */
-	virtual void on_traded(c_order_ptr &t_order) {};
+	virtual void on_before_trade(c_order_ptr &t_order) {};
+
+	/**
+	 * @brief Called after the order was involved in a trade.
+	 *
+	 * @param t_order the other order
+	 */
+	virtual void on_after_trade() {};
 
 	/**
 	 * @brief Called once the order got canceled. This may happen if

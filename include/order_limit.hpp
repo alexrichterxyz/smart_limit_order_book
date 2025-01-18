@@ -181,38 +181,46 @@ double elob::order_limit::trade(elob::c_order_ptr &t_order) {
 	double traded_quantity = 0.0;
 	double quantity_remaining = t_order->m_quantity;
 	auto queued_order_it = m_orders.begin();
+	elob::book &book = *(t_order->m_book);
+
+	t_order->m_locked = true;
 
 	while (queued_order_it != m_orders.end()) {
 		const auto queued_order = (*queued_order_it);
 		const double queued_order_quantity = queued_order->m_quantity;
 
+		// todo: make this clean; e.g. implement a trade function in order
 		if (quantity_remaining >= queued_order_quantity) {
 			// incoming order has more or equal quantity
+
+			queued_order->m_locked = true;
+			queued_order->on_before_trade(t_order);
+			t_order->on_before_trade(queued_order);
+			queued_order->m_locked = false;
+
 			erase(queued_order_it++);
 			traded_quantity += queued_order_quantity;
 			quantity_remaining -= queued_order_quantity;
 			t_order->m_quantity = quantity_remaining;
 			queued_order->m_quantity = 0.0;
-			queued_order->m_locked = true;
-			t_order->m_locked = true;
-			queued_order->on_traded(t_order);
-			t_order->on_traded(queued_order);
-			queued_order->m_locked = false;
-			t_order->m_locked = false;
-			queued_order->m_book = nullptr;
+			
+			// queued_order->m_book = nullptr;
+			book.m_traded_orders.push_back(queued_order);
+
 		} else if (!queued_order->m_all_or_nothing) {
 			/// consume non-AON order partially
+
+			queued_order->m_locked = true;
+			queued_order->on_before_trade(t_order);
+			t_order->on_before_trade(queued_order);
+			queued_order->m_locked = false;
+
 			traded_quantity += quantity_remaining;
 			queued_order->m_quantity -= quantity_remaining;
 			m_quantity -= quantity_remaining;
 			quantity_remaining = 0.0;
 			t_order->m_quantity = quantity_remaining;
-			queued_order->m_locked = true;
-			t_order->m_locked = true;
-			queued_order->on_traded(t_order);
-			t_order->on_traded(queued_order);
-			queued_order->m_locked = false;
-			t_order->m_locked = false;
+			book.m_traded_orders.push_back(queued_order);
 			break; // avoid quantity_remaining > 0.0 check in while
 			       // loop
 		} else {
@@ -220,6 +228,8 @@ double elob::order_limit::trade(elob::c_order_ptr &t_order) {
 			++queued_order_it;
 		}
 	}
+
+	t_order->m_locked = false;
 
 	return traded_quantity;
 }

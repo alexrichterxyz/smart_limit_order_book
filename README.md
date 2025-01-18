@@ -26,7 +26,7 @@ The matching engine is implemented in modern C++ (version 17 or higher) and has 
 ### Orders and triggers
 There are two main building blocks: "orders" and "triggers", that can be combined and customized to form nearly any conceivable order type.
 
-**Orders** are simply limit orders that are defined by their side (bid/ask), price, quantity, immediate-or-cancel flag, and all-or-nothing flag. Additionally, orders implement five customizable event handlers: on_accepted, on_rejected, on_traded, on_queued, and on_cancelled. 
+**Orders** are simply limit orders that are defined by their side (bid/ask), price, quantity, immediate-or-cancel flag, and all-or-nothing flag. Additionally, orders implement six customizable event handlers: on_accepted, on_rejected, on_before_trade, on_after_trade, on_queued, and on_cancelled. 
 
 **Triggers** are defined by a side (bid/ask) and price. Triggers inserted on the bid side get triggered if the market price (price of last trade) reaches or falls below the specified trigger price. Conversely, triggers inserted on the ask side get triggered if the market price reaches or falls below the trigger price. Triggers implement four customizable event handlers: on_accepted, on_queued, on_triggered, and on_cancelled. Triggers are  essential building blocks for stop and trailing stop orders.
 
