@@ -38,6 +38,7 @@ class book {
 	 * are removed from the deferral queue and executed. */
 	std::size_t m_order_deferral_depth = 0;
 	std::queue<order_ptr> m_deferred;
+	bool m_orders_locked;
 
 	std::map<double, order_limit, std::greater<double>> m_bids;
 	std::map<double, order_limit, std::less<double>> m_asks;
@@ -391,6 +392,7 @@ void elob::book::insert(elob::c_order_ptr t_order) {
 void elob::book::begin_order_deferral() { ++m_order_deferral_depth; }
 
 void elob::book::end_order_deferral() {
+	
 	if (--m_order_deferral_depth != 0) {
 		return;
 	}
@@ -636,6 +638,8 @@ void elob::book::execute_bid(elob::c_order_ptr &t_order) {
 	auto limit_it = m_asks.begin();
 	double order_price = t_order->m_price;
 
+	m_orders_locked = true;
+
 	while (limit_it != m_asks.end() && limit_it->first <= order_price &&
 	       t_order->m_quantity > 0.0) {
 		if (limit_it->second.trade(t_order) > 0.0) {
@@ -648,6 +652,8 @@ void elob::book::execute_bid(elob::c_order_ptr &t_order) {
 			++limit_it;
 		}
 	}
+
+	m_orders_locked = false;
 
 	if(m_traded_orders.empty()) {
 		// no trade was executed
@@ -674,6 +680,8 @@ void elob::book::execute_ask(elob::c_order_ptr &t_order) {
 	auto limit_it = m_bids.begin();
 	double order_price = t_order->m_price;
 
+	m_orders_locked = true;
+
 	while (limit_it != m_bids.end() && limit_it->first >= order_price &&
 	       t_order->m_quantity > 0.0) {
 		if (limit_it->second.trade(t_order) > 0.0) {
@@ -686,6 +694,8 @@ void elob::book::execute_ask(elob::c_order_ptr &t_order) {
 			++limit_it;
 		}
 	}
+
+	m_orders_locked = false;
 
 	if(m_traded_orders.empty()) {
 		// no trade was executed

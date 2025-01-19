@@ -28,7 +28,6 @@ class order : public std::enable_shared_from_this<order> {
 	const bool m_immediate_or_cancel = false;
 	bool m_all_or_nothing = false;
 	bool m_queued = false;
-	bool m_locked = false;
 
 	/* pointer to the book into which the order was inserted.
 		it's guaranteed to be dereferencable in the virtual
@@ -125,7 +124,7 @@ class order : public std::enable_shared_from_this<order> {
 	 * was inserted or nullptr if it hasn't been inserted into a
 	 * book yet or got removed from it.
 	 */
-	inline book *get_book() const;
+	inline book const *get_book() const;
 
 	/**
 	 * @brief Get the side of the order.
@@ -215,7 +214,7 @@ elob::order::order(const elob::side t_side, const double t_price,
       m_all_or_nothing(t_all_or_nothing) {}
 
 bool elob::order::cancel() {
-	if (m_queued && !m_locked) {
+	if (m_queued && !is_locked()) {
 		m_limit_it->second.erase(m_order_it);
 
 		if (m_limit_it->second.is_empty()) {
@@ -239,7 +238,7 @@ bool elob::order::set_all_or_nothing(const bool t_all_or_nothing) {
 		return true;
 	}
 
-	if (m_locked) {
+	if (is_locked()) {
 		return false;
 	}
 
@@ -276,7 +275,10 @@ bool elob::order::set_all_or_nothing(const bool t_all_or_nothing) {
 		m_aon_order_its_it =
 		    std::prev(m_limit_it->second.m_aon_order_its.end());
 
-	} else { // is queued and change from true to false
+	} else { 
+		// is queued and change from true to false
+		// todo: changing AON to non-AON could cause an order to become executable
+		
 		limit_obj.m_aon_quantity -= m_quantity;
 		limit_obj.m_quantity += m_quantity;
 		aon_order_its.erase(m_aon_order_its_it);
@@ -286,11 +288,12 @@ bool elob::order::set_all_or_nothing(const bool t_all_or_nothing) {
 }
 
 bool elob::order::set_quantity(const double t_quantity) {
+	// todo: check function 
 	if (t_quantity <= 0) {
 		return false;
 	}
 
-	if (m_locked) {
+	if (is_locked()) {
 		return false;
 	}
 
@@ -394,7 +397,7 @@ bool elob::order::set_quantity(const double t_quantity) {
 	return true;
 }
 
-elob::book *elob::order::get_book() const { return m_book; }
+elob::book const *elob::order::get_book() const { return m_book; }
 
 elob::side elob::order::get_side() const { return m_side; }
 
@@ -410,6 +413,8 @@ bool elob::order::is_all_or_nothing() const { return m_all_or_nothing; }
 
 bool elob::order::is_queued() const { return m_queued; }
 
-bool elob::order::is_locked() const { return m_locked; }
+bool elob::order::is_locked() const { 
+	return m_queued && m_book->m_orders_locked;
+}
 
 #endif // #ifndef ORDER_HPP

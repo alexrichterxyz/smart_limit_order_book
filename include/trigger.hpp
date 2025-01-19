@@ -46,12 +46,12 @@ class trigger : public std::enable_shared_from_this<trigger> {
 	 * market price of the book.
 	 *
 	 */
-	virtual void on_accepted(){};
+	virtual void on_accepted() {};
 
 	/**
 	 * @brief Called once the trigger has been inserted into the book
 	 */
-	virtual void on_queued(){};
+	virtual void on_queued() {};
 
 	/**
 	 * @brief Called if the trigger was rejected by the book. This
@@ -59,7 +59,7 @@ class trigger : public std::enable_shared_from_this<trigger> {
 	 * price, etc.
 	 *
 	 */
-	virtual void on_rejected(){};
+	virtual void on_rejected() {};
 
 	/**
 	 * @brief Triggers on the ask side get triggered if the market
@@ -68,13 +68,13 @@ class trigger : public std::enable_shared_from_this<trigger> {
 	 * responsive to falling prices.
 	 *
 	 */
-	virtual void on_triggered(){};
+	virtual void on_triggered() {};
 
 	/**
 	 * @brief Called once the trigger got canceled.
 	 *
 	 */
-	virtual void on_canceled(){};
+	virtual void on_canceled() {};
 
 	public:
 	/**
