@@ -1,13 +1,13 @@
-#ifndef TRIGGER_LIMIT_HPP
-#define TRIGGER_LIMIT_HPP
+#ifndef TRIGGER_LEVEL_HPP
+#define TRIGGER_LEVEL_HPP
 #include <list>
 #include <memory>
 
-namespace elob {
+namespace slob {
 class trigger;
 class book;
 
-class trigger_limit {
+class trigger_level {
 	private:
 	std::list<trigger_ptr> m_triggers;
 
@@ -22,7 +22,7 @@ class trigger_limit {
 	/**
 	 * @brief Get an iterator to the first trigger in the queue.
 	 *
-	 * @return std::list<elob::trigger_ptr>::iterator,
+	 * @return std::list<slob::trigger_ptr>::iterator,
 	 * iterator to first trigger in the queue.
 	 */
 	inline std::list<trigger_ptr>::iterator begin();
@@ -30,7 +30,7 @@ class trigger_limit {
 	/**
 	 * @brief Get an iterator to the end of the trigger queue.
 	 *
-	 * @return std::list<elob::trigger_ptr>::iterator,
+	 * @return std::list<slob::trigger_ptr>::iterator,
 	 * iterator to the end of the trigger queue.
 	 */
 	inline std::list<trigger_ptr>::iterator end();
@@ -45,56 +45,55 @@ class trigger_limit {
 	friend book;
 	friend trigger;
 
-	~trigger_limit();
+	~trigger_level();
 };
 
-} // namespace elob
+} // namespace slob
 
-std::list<elob::trigger_ptr>::iterator elob::trigger_limit::insert(
-    elob::c_trigger_ptr &t_trigger) {
+std::list<slob::trigger_ptr>::iterator slob::trigger_level::insert(
+    slob::c_trigger_ptr &t_trigger) {
 	m_triggers.push_back(t_trigger);
 	return std::prev(m_triggers.end());
 }
 
-void elob::trigger_limit::erase(
-    const std::list<elob::trigger_ptr>::iterator &t_trigger_it) {
+void slob::trigger_level::erase(
+    const std::list<slob::trigger_ptr>::iterator &t_trigger_it) {
 	auto trigger_obj = *t_trigger_it;
-	trigger_obj->m_queued = false;
 	m_triggers.erase(t_trigger_it);
 }
 
-void elob::trigger_limit::trigger_all() {
+void slob::trigger_level::trigger_all() {
 
 	while (!m_triggers.empty()) {
 		auto trigger_obj = m_triggers.front();
 		m_triggers.pop_front();
-		trigger_obj->m_queued = false;
+		trigger_obj->m_state = trigger_state::triggered;
 		trigger_obj->on_triggered();
 
-		if (!trigger_obj
-			 ->m_queued) { // on_triggered may reinsert the trigger
+		 // on_triggered may reinsert the trigger
+		if (trigger_obj->m_state == trigger_state::triggered) {
 			trigger_obj->m_book = nullptr;
 		}
 	}
 }
 
-elob::trigger_limit::~trigger_limit() {
+slob::trigger_level::~trigger_level() {
 	for (const auto &trigger : m_triggers) {
 		trigger->m_book = nullptr;
-		trigger->m_queued = false;
+		trigger->m_state = trigger_state::canceled;
 	}
 }
 
-std::list<elob::trigger_ptr>::iterator elob::trigger_limit::begin() {
+std::list<slob::trigger_ptr>::iterator slob::trigger_level::begin() {
 	return m_triggers.begin();
 }
 
-inline std::list<elob::trigger_ptr>::iterator elob::trigger_limit::end() {
+inline std::list<slob::trigger_ptr>::iterator slob::trigger_level::end() {
 	return m_triggers.end();
 }
 
-inline std::size_t elob::trigger_limit::trigger_count() const {
+inline std::size_t slob::trigger_level::trigger_count() const {
 	return m_triggers.size();
 }
 
-#endif // #ifndef TRIGGER_LIMIT_HPP
+#endif // #ifndef TRIGGER_LEVEL_HPP

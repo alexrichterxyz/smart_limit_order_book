@@ -3,7 +3,7 @@
 #include <memory>
 #include <variant>
 
-namespace elob {
+namespace slob {
 class order;
 class trigger;
 
@@ -22,22 +22,22 @@ class insertable {
 	inline const std::shared_ptr<trigger> *get_trigger() const;
 };
 
-} // namespace elob
+} // namespace slob
 
-elob::insertable::insertable(const std::shared_ptr<order> &order)
+slob::insertable::insertable(const std::shared_ptr<order> &order)
     : m_obj(order) {}
 
-elob::insertable::insertable(const std::shared_ptr<trigger> &trigger)
+slob::insertable::insertable(const std::shared_ptr<trigger> &trigger)
     : m_obj(trigger) {}
 
-bool elob::insertable::is_order() const { return m_obj.index() == 0; }
+bool slob::insertable::is_order() const { return m_obj.index() == 0; }
 
-const std::shared_ptr<elob::order> *elob::insertable::get_order() const {
-	return std::get_if<std::shared_ptr<elob::order>>(&m_obj);
+const std::shared_ptr<slob::order> *slob::insertable::get_order() const {
+	return std::get_if<std::shared_ptr<slob::order>>(&m_obj);
 }
 
-const std::shared_ptr<elob::trigger> *elob::insertable::get_trigger() const {
-	return std::get_if<std::shared_ptr<elob::trigger>>(&m_obj);
+const std::shared_ptr<slob::trigger> *slob::insertable::get_trigger() const {
+	return std::get_if<std::shared_ptr<slob::trigger>>(&m_obj);
 }
 
 #endif // #ifndef INSERTABLE_HPP

@@ -1,21 +1,28 @@
-MIT License
+Custom License for SLOB
 
-Copyright (c) 2023 Alexander Richter
+Copyright (C) 2025 Alexander Richter
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+1. Grant of License
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+    You are free to use, modify, and distribute this software for non-commercial purposes only.
+    Commercial use, including but not limited to SaaS, selling, sublicensing, or integrating this software into a product or service for financial gain, requires a separate paid license from the copyright holder.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+2. Commercial Use
+
+    If you wish to use this software commercially, you must obtain a commercial license by contacting hi@alexrichter.xyz.
+    Unauthorized commercial use is a violation of this license.
+
+3. No Warranty & Liability
+
+    This software is provided "as is" without any warranties or guarantees.
+    The author is not liable for any damages resulting from the use of this software.
+
+4. Patent Rights
+
+    This license does not grant any patent rights. Any use of the software must comply with applicable patent laws.
+
+5. No Open Source Transition
+
+    This software will not transition to an open-source license at any future date. It will remain under these terms indefinitely.
+
+For commercial licensing, please contact hi@alexrichter.xyz.

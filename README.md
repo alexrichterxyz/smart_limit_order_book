@@ -1,41 +1,143 @@
-# An extendable C++ limit order book for research purposes 
-![Under development, do not use!](https://img.shields.io/badge/⚠%EF%B8%8F-Under%20development%2C%20do%20not%20use!-critical?style=for-the-badge)
+# SLOB: A programmable C++ price-time-priority limit order book
 
-Feel free to reach out to me if you are not a bot
+![](https://img.shields.io/badge/-C++-blue?logo=cplusplus)
 
-📧 alexander.richter @ sydney.edu.au
+SLOB (Smart Limit Order Book) is an innovative C++ price-time-priority matching engine. It extends a conventional order book with programmable orders enabling complex conditional order types, and even entire trading strategies to be executed natively within the matching engine. Orders are able to modify or cancel other orders and even themselves.
 
-## Overview
-A matching engine is the software that executes orders on a financial exchange. This project contains a price-time-priority matching engine -the type most securities markets operate on. 
+## Core primitives
 
-This C++ implementation boasts a user friendly, efficient, yet highly customizable interface making it ideal for simulation and research purposes. A wide range of of order types and features are supported out-of-the-box, including:
+SLOB supports two insertable primitives: `order`s and `trigger`s
 
-- market orders
-- limit orders
-- all or nothing
-- immediate or cancel
-- fill or kill
-- good til canceled
-- stop orders
-- trailing stop orders with relative or absolute offset.
+An `order` represents executable trading intent. Orders expose the following customizable event hooks:
 
-## Implementation
+- `on_accepted`
+- `on_resting`
+- `on_before_match`
+- `on_filled`
+- `on_canceled`
+- `on_deferred_cancel`
+- `on_deferred_set_price`
+- `on_deferred_set_quantity`
 
-The matching engine is implemented in modern C++ (version 17 or higher) and has no external dependencies. 
+`trigger`s are the main building blocks for stop orders, trailing stops, and other event-driven instructions. They encode reactive behavior tied to changes in the market price, best bid, and best ask. Triggers expose the following customizable event hooks:
 
-### Orders and triggers
-There are two main building blocks: "orders" and "triggers", that can be combined and customized to form nearly any conceivable order type.
+- `on_accepted`
+- `on_resting`
+- `on_triggered`
+- `on_canceled`
 
-**Orders** are simply limit orders that are defined by their side (bid/ask), price, quantity, immediate-or-cancel flag, and all-or-nothing flag. Additionally, orders implement six customizable event handlers: on_accepted, on_rejected, on_before_trade, on_after_trade, on_queued, and on_cancelled. 
+## Deferrals
 
-**Triggers** are defined by a side (bid/ask) and price. Triggers inserted on the bid side get triggered if the market price (price of last trade) reaches or falls below the specified trigger price. Conversely, triggers inserted on the ask side get triggered if the market price reaches or falls below the trigger price. Triggers implement four customizable event handlers: on_accepted, on_queued, on_triggered, and on_cancelled. Triggers are  essential building blocks for stop and trailing stop orders.
+Programmable behavior creates a sequencing problem as event handlers may request new operations while the book is already processing another one.
 
-### Performance
+SLOB therefore distinguishes between operations that may execute immediately and operations that must be deferred. Deferred operations are queued and later processed in FIFO order. This preserves deterministic execution and prevents nested event logic from violating price-time priority.
 
-The code is designed with the following principles in mind:
+## Build
 
-1. **extendability over performance**: e.g. storing order pointers as opposed to order values in the book increases the chance of cache misses but allows for order customization through runtime-polymorphism
-1. **safety over performance**: e.g. using smart pointers in the public interface as opposed to raw pointers prevents illegal memory access
-1. **simplicity over performance**: e.g. every order type is elegantly represented as a "trigger" object, "order" object, or combination thereof. This greatly simplifies the implementation of complicated order types such as traling stop orders.
+SLOB requires C++17 or higher.
 
-Nevertheless, you can expect the matching engine to handle over a million standard limit/market order executions per second on standard hardware thanks to the low time-complexity of order and trigger operations. However, it's important to note that the use of all-or-nothing orders and trailing stop may decrease its performance significantly. 
+```bash
+g++ -std=c++17 -Wall example.cpp -o example.out
+```
+## Examples
+
+### Basic example
+
+This example creates an order book and a single order, inserts the order into the book, updates its price and quantity, and then cancels it.
+
+```cpp
+#include <iostream>
+#include "include/slob.hpp"
+
+int main() {
+    slob::book book;
+    auto order = std::make_shared<slob::order>(slob::side::ask, 1250, 100);
+
+    book.insert(order);
+    std::cout << book << '\n';
+
+    order->set_price(1300);
+    std::cout << book << '\n';
+
+    order->set_quantity(200);
+    std::cout << book << '\n';
+
+    order->cancel();
+    std::cout << book << '\n';
+
+    return 0;
+}
+```
+
+Output:
+
+```
+┌───────────BIDS───────────┬───────────ASKS───────────┐
+│          PRC         QTY │          PRC         QTY │
+│                          │        1,250         100 │
+
+┌───────────BIDS───────────┬───────────ASKS───────────┐
+│          PRC         QTY │          PRC         QTY │
+│                          │        1,300         100 │
+
+┌───────────BIDS───────────┬───────────ASKS───────────┐
+│          PRC         QTY │          PRC         QTY │
+```
+
+### Custom order behavior
+
+Here we define a custom order type that reprices itself on insert to 50 cents above the best ask or 50 cents below the best bid.
+
+```cpp
+#include <iostream>
+#include "include/slob.hpp"
+
+class reprice_on_insert_order : public slob::order {
+public:
+    using slob::order::order;
+
+    void on_accepted() override {
+        if (get_side() == slob::side::bid) {
+            const std::int64_t bid_price = get_book()->get_bid_price();
+            set_price(bid_price - 50);
+        } else {
+            const std::int64_t ask_price = get_book()->get_ask_price();
+            set_price(ask_price + 50);
+        }
+    }
+};
+
+int main() {
+    slob::book book;
+    auto bid = std::make_shared<slob::order>(slob::side::bid, 1200, 100);
+    auto ask = std::make_shared<slob::order>(slob::side::ask, 1250, 100);
+
+    book.insert(bid);
+    book.insert(ask);
+
+    // set initial price to 0, the order reprices itself in on_accepted
+    auto reprice_order = std::make_shared<reprice_on_insert_order>(slob::side::bid, 0, 200);
+    book.insert(reprice_order);
+
+    std::cout << book << '\n';
+}
+```
+
+Output:
+
+```
+┌───────────BIDS───────────┬───────────ASKS───────────┐
+│          PRC         QTY │          PRC         QTY │
+│        1,200         100 │        1,250         100 │
+│        1,150         200 │                          │
+```
+
+## Todos
+
+- improve/fix documentation
+- expand test coverage
+- clean up header dependencies
+
+## Contact
+
+`curl -s https://alexrichter.xyz | grep -i -o '[A-Z0-9._%+-]\+@[A-Z0-9.-]\+\.[A-Z]\{2,4\}'`

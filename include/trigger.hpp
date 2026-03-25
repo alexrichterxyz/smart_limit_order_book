@@ -1,13 +1,17 @@
 #ifndef TRIGGER_HPP
 #define TRIGGER_HPP
+#include "common.hpp"
 #include <list>
 #include <map>
 #include <memory>
+#include <cstdint>
 
-namespace elob {
+namespace slob {
 
-class trigger_limit;
+class trigger_level;
 class book;
+
+
 
 /**
  * @brief An object of class trigger is essentially an event handler
@@ -24,9 +28,9 @@ class book;
  */
 class trigger : public std::enable_shared_from_this<trigger> {
 	private:
-	const side m_side;
-	double m_price;
-	bool m_queued = false;
+	const trigger_type m_type;
+	std::int64_t m_price;
+	trigger_state m_state = trigger_state::pending;
 
 	/* pointer to the book into which the order was inserted.
 		it's guaranteed to be dereferencable in the virtual
@@ -35,8 +39,10 @@ class trigger : public std::enable_shared_from_this<trigger> {
 
 	/* these iterators store the location of the order in the order
 		book. They are used to cancel the order in O(1). */
-	std::map<double, trigger_limit>::iterator m_limit_it;
+	std::map<std::int64_t, trigger_level>::iterator m_level_it;
 	std::list<trigger_ptr>::iterator m_trigger_it;
+
+	inline void erase_trigger_level();
 
 	protected:
 	/**
@@ -51,15 +57,7 @@ class trigger : public std::enable_shared_from_this<trigger> {
 	/**
 	 * @brief Called once the trigger has been inserted into the book
 	 */
-	virtual void on_queued() {};
-
-	/**
-	 * @brief Called if the trigger was rejected by the book. This
-	 * may happen if the trigger is already queued, has a negative
-	 * price, etc.
-	 *
-	 */
-	virtual void on_rejected() {};
+	virtual void on_resting() {};
 
 	/**
 	 * @brief Triggers on the ask side get triggered if the market
@@ -80,34 +78,37 @@ class trigger : public std::enable_shared_from_this<trigger> {
 	/**
 	 * @brief Get the price of the order.
 	 *
-	 * @return double price of the order.
+	 * @return std::int64_t price of the order.
 	 */
-	inline double get_price() const;
+	inline std::int64_t get_price() const;
 
 	/**
 	 * @brief Update the price of the trigger.
 	 *
 	 * @param t_price, the new price of the trigger.
 	 */
-	inline void set_price(double t_price);
+	inline bool set_price(std::int64_t t_price);
 
 	/**
 	 * @brief Get the side of the trigger.
 	 *
-	 * @return either elob::side::bid or elob::side:ask
+	 * @return either slob::side::bid or slob::side:ask
 	 */
-	inline side get_side() const;
+	inline trigger_state get_state() const;
+
+	// todo: add documentation
+	inline trigger_type get_type() const;
 
 	/**
 	 * @brief Construct a new trigger object
 	 *
-	 * @param t_side, either elob::side::bid or elob::side::ask. Bid
+	 * @param t_side, either slob::side::bid or slob::side::ask. Bid
 	 * triggers are responsive to falling market prices whereas ask
 	 * triggers are responsive to rising market prices.
 	 * @param t_price, the market price (price of last trade) at
 	 * which the on_triggered method will be triggered.
 	 */
-	trigger(side t_side, double t_price);
+	trigger(trigger_type t_type, std::int64_t t_price);
 
 	/**
 	 * @brief Get the instance of the book into which the TRIGGER
@@ -130,78 +131,138 @@ class trigger : public std::enable_shared_from_this<trigger> {
 	 */
 	inline bool cancel();
 
-	/**
-	 * @brief Check whether the tigger is queued. Queued triggers
-	 * can be canceled.
-	 *
-	 * @return true, the trigger is queued.
-	 * @return false, the trigger is not queued.
-	 */
-	inline bool is_queued() const;
+	inline bool reset();
+
+	virtual ~trigger() = default;
 
 	friend book;
-	friend trigger_limit;
+	friend trigger_level;
 };
-} // namespace elob
+} // namespace slob
 
 #include "book.hpp"
-#include "trigger_limit.hpp"
+#include "trigger_level.hpp"
 
-elob::trigger::trigger(elob::side t_side, double t_price)
-    : m_side(t_side), m_price(t_price) {}
+slob::trigger::trigger(slob::trigger_type t_type, std::int64_t t_price)
+    : m_type(t_type), m_price(t_price) {}
 
-bool elob::trigger::cancel() {
-	if (m_queued) {
-
-		m_limit_it->second.erase(m_trigger_it);
-
-		if (m_limit_it->second.is_empty()) {
-			if (m_side == side::bid) {
-				m_book->m_bid_triggers.erase(m_limit_it);
-			} else {
-				m_book->m_ask_triggers.erase(m_limit_it);
-			}
+void slob::trigger::erase_trigger_level() {
+	switch(m_type) {
+		case trigger_type::bid_up: {
+			m_book->m_bid_up_triggers.erase(m_level_it);
+			break;
 		}
-
-		on_canceled();
-
-		if (!m_queued) { // on_canceled may reinsert the trigger
-			m_book = nullptr;
+		case trigger_type::ask_up: {
+			m_book->m_ask_up_triggers.erase(m_level_it);
+			break;
 		}
-
-		return true;
+		case trigger_type::market_up: {
+			m_book->m_market_up_triggers.erase(m_level_it);
+			break;
+		}
+		case trigger_type::bid_down: {
+			m_book->m_bid_down_triggers.erase(m_level_it);
+			break;
+		}
+		case trigger_type::ask_down: {
+			m_book->m_ask_down_triggers.erase(m_level_it);
+			break;
+		}
+		case trigger_type::market_down: {
+			m_book->m_market_down_triggers.erase(m_level_it);
+			break;
+		}
 	}
-
-	return false;
 }
 
-void elob::trigger::set_price(double t_price) {
-	if (m_price == t_price) {
-		return;
+bool slob::trigger::cancel() {
+	switch(m_state){
+		case trigger_state::canceled:
+		case trigger_state::triggered:
+		case trigger_state::pending: {
+			return false;
+		}
+		
+		case trigger_state::accepted: {
+			m_state = trigger_state::canceled;
+			on_canceled();
+
+			// on_canceled may change the trigger state
+			if(m_state == trigger_state::canceled) {
+				m_book = nullptr;
+			}
+			
+			return true;
+		}
+		default:
+			break;
 	}
 
-	if (m_queued) {
-		m_limit_it->second.erase(m_trigger_it);
+	// state is resting
 
-		if (m_limit_it->second.is_empty()) {
-			if (m_side == side::bid) {
-				m_book->m_bid_triggers.erase(m_limit_it);
-			} else {
-				m_book->m_ask_triggers.erase(m_limit_it);
-			}
+	m_level_it->second.m_triggers.erase(m_trigger_it);
+		
+	if(m_level_it->second.m_triggers.empty()) {
+		erase_trigger_level();
+	}
+
+	m_state = trigger_state::canceled;
+	on_canceled();
+
+	// on_canceled may change the trigger state
+	if(m_state == trigger_state::canceled) {
+		m_book = nullptr;
+	}
+	
+	return true;
+}
+
+
+bool slob::trigger::reset() {
+	switch(m_state) {
+		case slob::trigger_state::canceled:
+		case slob::trigger_state::triggered: {
+			m_state = slob::trigger_state::pending;
+			return true;
 		}
+		default:
+		return false;
+	}
+}
+
+bool slob::trigger::set_price(std::int64_t t_price) {
+	switch(m_state) {
+		case trigger_state::canceled:
+		case trigger_state::triggered: {
+			return false;
+		}
+		case trigger_state::accepted:
+		case trigger_state::pending: {
+			m_price = t_price;
+			return true;
+		}
+		default:
+		break;
+	}
+
+	// state is resting
+	m_level_it->second.erase(m_trigger_it);
+
+	if (m_level_it->second.is_empty()) {
+		erase_trigger_level();
 	}
 
 	m_price = t_price;
-	m_book->insert(shared_from_this());
+	m_state = trigger_state::pending;
+	return m_book->insert(shared_from_this());
 }
 
-double elob::trigger::get_price() const { return m_price; }
+std::int64_t slob::trigger::get_price() const { return m_price; }
 
-elob::side elob::trigger::get_side() const { return m_side; }
+slob::trigger_state slob::trigger::get_state() const { return m_state; }
 
-elob::book *elob::trigger::get_book() const { return m_book; }
+slob::trigger_type slob::trigger::get_type() const { return m_type; }
 
-bool elob::trigger::is_queued() const { return m_queued; }
+slob::book *slob::trigger::get_book() const { return m_book; }
 
 #endif // #ifndef TRIGGER_HPP

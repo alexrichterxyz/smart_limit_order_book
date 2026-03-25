@@ -2,38 +2,34 @@
 #define STOP_HPP
 #include "order.hpp"
 #include "trigger.hpp"
+#include <cstdint>
 
-namespace elob {
+namespace slob {
 
-template <class order_t> class stop : virtual public trigger {
+class stop : virtual public trigger {
 	private:
-	std::shared_ptr<order_t> m_order;
+	std::shared_ptr<slob::order> m_order;
 
 	void on_triggered() override;
 
 	public:
-	stop(side t_side, double t_price, std::shared_ptr<order_t> t_order);
+	stop(const direction t_follow_direction, const int64_t t_price, const std::shared_ptr<order> &t_order);
 
-	inline const std::shared_ptr<order_t> &get_pending_order() const;
+	inline const std::shared_ptr<order> &get_order() const;
 };
 
-typedef stop<order> stop_order;
-typedef stop<trigger> stop_trigger;
-} // namespace elob
+} // namespace slob
 
 #include "book.hpp"
 
-template <class order_t>
-elob::stop<order_t>::stop(
-    elob::side t_side, double t_price, std::shared_ptr<order_t> t_order)
-    : elob::trigger(t_side, t_price), m_order(t_order) {}
+slob::stop::stop(const slob::direction t_follow_direction, const int64_t t_price, const std::shared_ptr<order> &t_order)
+    : slob::trigger(t_follow_direction == slob::direction::up ? trigger_type::market_up : trigger_type::market_down, t_price), m_order(t_order) {}
 
-template <class order_t> void elob::stop<order_t>::on_triggered() {
+void slob::stop::on_triggered() {
 	get_book()->insert(m_order);
 }
 
-template <class order_t>
-const std::shared_ptr<order_t> &elob::stop<order_t>::get_pending_order() const {
+const std::shared_ptr<slob::order> &slob::stop::get_order() const {
 	return m_order;
 };
 
